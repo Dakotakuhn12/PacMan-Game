@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: pac-man
+    runtime: static
+    buildCommand: echo "no build needed"
+    staticPublishPath: .
