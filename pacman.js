@@ -17,12 +17,14 @@ let pacmanDownImage;
 let pacmanLeftImage;
 let pacmanRightImage;
 let wallImage;
+let cherryImage;
+let scaredGhostImage;
 
 //X = wall, O = skip, P = pac man, ' ' = food
 //Ghosts: b = blue, o = orange, p = pink, r = red
 const tileMap = [
   "XXXXXXXXXXXXXXXXXXX",
-  "X        X        X",
+  "X        C        X",
   "X XX XXX X XXX XX X",
   "X                 X",
   "X XX X XXXXX X XX X",
@@ -38,7 +40,7 @@ const tileMap = [
   "X XX XXX X XXX XX X",
   "X  X     P    X  X",
   "XX X X XXXXX X X XX",
-  "X    X   X   X    X",
+  "X    C   X   X    X",
   "X XXXXXX X XXXXXX X",
   "X                 X",
   "XXXXXXXXXXXXXXXXXXX",
@@ -48,6 +50,9 @@ const walls = new Set();
 const foods = new Set();
 const ghosts = new Set();
 let pacman;
+let cherry;
+let ghostsScared = false;
+let scaredTimer = 0;
 
 const directions = ["U", "D", "L", "R"]; // up down left right
 let score = 0;
@@ -100,12 +105,19 @@ function loadImages() {
 
   pacmanRightImage = new Image();
   pacmanRightImage.src = "./images/pacmanRight.png";
+
+  cherryImage = new Image();
+  cherryImage.src = "./images/cherry.png";
+
+  scaredGhostImage = new Image();
+  scaredGhostImage.src = "./images/scaredGhost.png";
 }
 
 function loadMap() {
   walls.clear();
   foods.clear();
   ghosts.clear();
+  cherry = null;
 
   for (let r = 0; r < rowCount; r++) {
     for (let c = 0; c < columnCount; c++) {
@@ -142,6 +154,8 @@ function loadMap() {
         // empty is food
         const food = new Block(null, x + 14, y + 14, 4, 4);
         foods.add(food);
+      } else if (tileMapChar == "C") {
+        cherry = new Block(cherryImage, x, y, tileSize, tileSize);
       }
     }
   }
@@ -175,6 +189,15 @@ function draw() {
   for (let food of foods.values()) {
     context.fillRect(food.x, food.y, food.width, food.height);
   }
+  if (cherry) {
+    context.drawImage(
+      cherry.image,
+      cherry.x,
+      cherry.y,
+      cherry.width,
+      cherry.height,
+    );
+  }
 
   // score
   context.fillStyle = "white";
@@ -205,12 +228,19 @@ function move() {
 
   for (let ghost of ghosts.values()) {
     if (collision(ghost, pacman)) {
-      lives -= 1;
-      if (lives == 0) {
-        gameOver = true;
-        return;
+      if (ghostsScared) {
+        score += 200;
+        ghost.reset();
+      } else {
+        lives -= 1;
+
+        if (lives == 0) {
+          gameOver = true;
+          return;
+        }
+
+        resetPositions();
       }
-      resetPositions();
     }
     if (
       ghost.y == tileSize * 9 &&
@@ -247,10 +277,39 @@ function move() {
   }
   foods.delete(foodEaten);
 
+  // Cherry Collision
+  if (cherry && collision(pacman, cherry)) {
+    cherry = null;
+    ghostsScared = true;
+    scaredTimer = 300; // About 15 seconds
+  }
+
+  for (let ghost of ghosts.values()) {
+    ghost.image = scaredGhostImage;
+  }
+
   // next level
   if (foods.size == 0) {
     loadMap();
     resetPositions();
+  }
+
+  if (ghostsScared) {
+    scaredTimer--;
+
+    if (scaredTimer <= 0) {
+      ghostsScared = false;
+
+      for (let ghost of ghosts.values()) {
+        if (ghost.image == scaredGhostImage) {
+          if (ghost.startX == tileSize * 9) {
+            ghost.image = blueGhostImage;
+          }
+          // easier option:
+          loadMap();
+        }
+      }
+    }
   }
 }
 
