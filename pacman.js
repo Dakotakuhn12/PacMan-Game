@@ -326,12 +326,16 @@ function movePacman(e) {
 
   if (e.code == "ArrowUp" || e.code == "KeyW") {
     pacman.updateDirection("U");
+    e.preventDefault();
   } else if (e.code == "ArrowDown" || e.code == "KeyS") {
     pacman.updateDirection("D");
+    e.preventDefault();
   } else if (e.code == "ArrowLeft" || e.code == "KeyA") {
     pacman.updateDirection("L");
+    e.preventDefault();
   } else if (e.code == "ArrowRight" || e.code == "KeyD") {
     pacman.updateDirection("R");
+    e.preventDefault();
   }
 
   // update pacman images
