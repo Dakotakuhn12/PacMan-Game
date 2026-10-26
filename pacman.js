@@ -927,9 +927,6 @@ function move() {
       }
     }
 
-<<<<<<< HEAD
-    moveGhost(ghost);
-=======
     const houseY = tileSize * 9;
     const houseCenterX = tileSize * 9;
     if (
@@ -981,7 +978,6 @@ function move() {
       ghost.returnDelay = [...ghosts].filter((other) => other !== ghost && other.inPen).length * 12;
     }
     if (ghost.leavingPen && ghost.x === houseCenterX && ghost.y < tileSize * 8) ghost.leavingPen = false;
->>>>>>> 03b033348464587c8994198d4086248cdae16f15
   }
 
   // ----- Eating food -----
@@ -1155,32 +1151,6 @@ function canMove(block, direction) {
   return true;
 }
 
-<<<<<<< HEAD
-// Exit through the center opening before wandering around the maze.
-function moveGhost(ghost) {
-  const exitX = 9 * tileSize;
-  const exitY = 7 * tileSize;
-  if (ghost.leavingHouse) {
-    if (ghost.y > exitY) {
-      const direction = ghost.y == 9 * tileSize && ghost.x != exitX
-        ? (ghost.x < exitX ? "R" : "L") : "U";
-      ghost.updateDirection(direction);
-      ghost.x += ghost.velocityX;
-      ghost.y += ghost.velocityY;
-      return;
-    }
-    ghost.leavingHouse = false;
-  }
-  const aligned = ghost.x % tileSize == 0 && ghost.y % tileSize == 0;
-  if (aligned && !canMove(ghost, ghost.direction)) {
-    const available = directions.filter(direction => canMove(ghost, direction));
-    if (!available.length) return;
-    ghost.updateDirection(available[Math.floor(Math.random() * available.length)]);
-  }
-  if (canMove(ghost, ghost.direction)) {
-    ghost.x += ghost.velocityX;
-    ghost.y += ghost.velocityY;
-=======
 function canGhostMove(ghost, direction) {
   const velocity = velocityFor(direction);
   const next = {
@@ -1293,7 +1263,6 @@ function chooseReturnDirection(ghost) {
         firstDirection: current.firstDirection || direction,
       });
     }
->>>>>>> 03b033348464587c8994198d4086248cdae16f15
   }
 }
 
@@ -1358,10 +1327,12 @@ function resetPositions() {
     ghost.image = ghostsScared ? scaredGhostImage : ghost.normalImage;
     ghost.direction = "U";
     ghost.updateVelocity();
-    ghost.requiredDots = ghostDotLimit(ghost);
-    ghost.waitingForDots = dotsEatenThisLevel < ghost.requiredDots;
-    ghost.leavingPen = !ghost.waitingForDots;
-    ghost.penDelay = 0;
+    // Release every ghost automatically; eating dots must not postpone exits.
+    const releaseOrder = { chaser: 0, ambush: 1, flank: 2, guard: 3 };
+    ghost.requiredDots = 0;
+    ghost.waitingForDots = false;
+    ghost.leavingPen = true;
+    ghost.penDelay = (releaseOrder[ghost.personality] || 0) * Math.round(500 / frameDelay);
   }
 }
 
@@ -1483,14 +1454,10 @@ class Block {
     this.startY = y;
 
     this.direction = "R"; // current direction
-<<<<<<< HEAD
-    this.leavingHouse = true; // follow the exit route after spawning
-=======
     this.inPen = false;
     this.leavingPen = false;
     this.reversePending = false;
     this.scaredImmune = false;
->>>>>>> 03b033348464587c8994198d4086248cdae16f15
     this.nextDirection = null; // NEW: queued turn requested by the player
     this.velocityX = 0; // pixels moved per frame horizontally
     this.velocityY = 0; // pixels moved per frame vertically
@@ -1498,7 +1465,7 @@ class Block {
 
   // Change direction without moving, keeping ghosts aligned with the tiles.
   updateDirection(direction) {
-    if (!canMove(this, direction)) return;
+    if (!(this.isGhost ? canGhostMove(this, direction) : canMove(this, direction))) return;
     this.direction = direction;
     this.updateVelocity();
   }
@@ -1525,6 +1492,8 @@ class Block {
   reset() {
     this.x = this.startX;
     this.y = this.startY;
-    this.leavingHouse = true;
+    this.leavingPen = this.isGhost;
   }
 }
+
+
