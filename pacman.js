@@ -389,34 +389,7 @@ function move() {
       }
     }
 
-    // Ghosts in the ghost-house row (row 9) are pushed upward so they
-    // leave the house instead of wandering sideways inside it
-    if (
-      ghost.y == tileSize * 9 &&
-      ghost.direction != "U" &&
-      ghost.direction != "D"
-    ) {
-      ghost.updateDirection("U");
-    }
-
-    // Move the ghost
-    ghost.x += ghost.velocityX;
-    ghost.y += ghost.velocityY;
-
-    // If it hit a wall or the screen edge, undo the step and pick a
-    // new random direction
-    for (let wall of walls.values()) {
-      if (
-        collision(ghost, wall) ||
-        ghost.x <= 0 ||
-        ghost.x + ghost.width >= boardWidth
-      ) {
-        ghost.x -= ghost.velocityX;
-        ghost.y -= ghost.velocityY;
-        const newDirection = directions[Math.floor(Math.random() * 4)];
-        ghost.updateDirection(newDirection);
-      }
-    }
+    moveGhost(ghost);
   }
 
   // ----- Eating food -----
@@ -522,10 +495,39 @@ function canMove(block, direction) {
     width: block.width,
     height: block.height,
   };
+  if (test.x < 0 || test.x + test.width > boardWidth ||
+      test.y < 0 || test.y + test.height > boardHeight) return false;
   for (let wall of walls.values()) {
     if (collision(test, wall)) return false;
   }
   return true;
+}
+
+// Exit through the center opening before wandering around the maze.
+function moveGhost(ghost) {
+  const exitX = 9 * tileSize;
+  const exitY = 7 * tileSize;
+  if (ghost.leavingHouse) {
+    if (ghost.y > exitY) {
+      const direction = ghost.y == 9 * tileSize && ghost.x != exitX
+        ? (ghost.x < exitX ? "R" : "L") : "U";
+      ghost.updateDirection(direction);
+      ghost.x += ghost.velocityX;
+      ghost.y += ghost.velocityY;
+      return;
+    }
+    ghost.leavingHouse = false;
+  }
+  const aligned = ghost.x % tileSize == 0 && ghost.y % tileSize == 0;
+  if (aligned && !canMove(ghost, ghost.direction)) {
+    const available = directions.filter(direction => canMove(ghost, direction));
+    if (!available.length) return;
+    ghost.updateDirection(available[Math.floor(Math.random() * available.length)]);
+  }
+  if (canMove(ghost, ghost.direction)) {
+    ghost.x += ghost.velocityX;
+    ghost.y += ghost.velocityY;
+  }
 }
 
 // Called every frame: apply the queued turn as soon as it's legal
@@ -601,32 +603,17 @@ class Block {
     this.startY = y;
 
     this.direction = "R"; // current direction
+    this.leavingHouse = true; // follow the exit route after spawning
     this.nextDirection = null; // NEW: queued turn requested by the player
     this.velocityX = 0; // pixels moved per frame horizontally
     this.velocityY = 0; // pixels moved per frame vertically
   }
 
-  // Tries to switch direction. If the new direction runs straight into a
-  // wall, the change is cancelled. (Used by ghosts; Pac-Man uses tryTurn.)
+  // Change direction without moving, keeping ghosts aligned with the tiles.
   updateDirection(direction) {
-    const prevDirection = this.direction;
+    if (!canMove(this, direction)) return;
     this.direction = direction;
     this.updateVelocity();
-
-    // Take a trial step in the new direction
-    this.x += this.velocityX;
-    this.y += this.velocityY;
-
-    // If the trial step hits a wall, undo it and restore the old direction
-    for (let wall of walls.values()) {
-      if (collision(this, wall)) {
-        this.x -= this.velocityX;
-        this.y -= this.velocityY;
-        this.direction = prevDirection;
-        this.updateVelocity();
-        return;
-      }
-    }
   }
 
   // Sets velocityX/velocityY to match the current direction
@@ -650,5 +637,6 @@ class Block {
   reset() {
     this.x = this.startX;
     this.y = this.startY;
+    this.leavingHouse = true;
   }
 }
